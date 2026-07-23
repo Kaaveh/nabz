@@ -15,7 +15,8 @@ jobs:
       - run: swift --version
       - run: swift build
       - run: swift test
-      # Scripted --simulate smoke run (NFR-6): stream a few samples, then exit.
-      # head closing the pipe SIGPIPEs nabz — expected, so no pipefail here.
+      # Scripted smoke run (NFR-6): the TUI renders N frames against the simulated
+      # source, then exits cleanly. NABZ_SMOKE_FRAMES is the no-pty CI hook (D-10);
+      # a non-zero exit fails the job.
       - name: Simulate smoke run
-        run: swift run nabz | head -n 3
+        run: NABZ_SMOKE_FRAMES=30 swift run nabz > /dev/null

@@ -37,6 +37,8 @@ public func runTUI(source: HeartRateSource, hrMax: Int, mode: ColorMode = ColorM
     var (cols, rows) = terminal.size
     var previous = ScreenBuffer(cols: cols, rows: rows)
     var frame = 0
+    var animation = HeartAnimation()
+    var lastSampleTime: Date?
 
     while quitRequested == 0 {
         if terminal.consumeResize() {
@@ -46,9 +48,21 @@ public func runTUI(source: HeartRateSource, hrMax: Int, mode: ColorMode = ColorM
         }
 
         let (state, sample) = await model.snapshot()
+        let now = Date()
+
+        // Feed each new live sample to the animation exactly once (the model holds the latest).
+        // Log sample→render latency for the §11 exit-checklist measurement (NFR-1).
+        let display = DisplayState.from(state, contact: sample?.contact)
+        if let sample, sample.timestamp != lastSampleTime, display == .live || display == .noContact {
+            lastSampleTime = sample.timestamp
+            animation.ingest(sample, now: now)
+            nabzLog.debug("sample→render latency \(now.timeIntervalSince(sample.timestamp) * 1000, format: .fixed(precision: 1)) ms")
+        }
+        animation.advance(now: now)
+
         var buf = ScreenBuffer(cols: cols, rows: rows)
-        let input = FrameInput(state: state, sample: sample, elapsed: Date().timeIntervalSince(start), hrMax: hrMax)
-        Renderer.paint(into: &buf, input: input)
+        let input = FrameInput(state: state, sample: sample, elapsed: now.timeIntervalSince(start), hrMax: hrMax)
+        Renderer.paint(into: &buf, input: input, heart: animation.frame(now: now))
         terminal.write(buf.diff(from: previous, mode: mode))
         previous = buf
 

@@ -1,4 +1,5 @@
 import Foundation
+import NabzCore
 
 /// How color escapes are emitted. Truecolor with a 256-color fallback, detected via
 /// `$COLORTERM`; `.none` renders no color at all — the `--no-color` / dumb-terminal path
@@ -50,4 +51,17 @@ public enum Palette {
     public static let z3 = Color(0xEA, 0xB3, 0x08, xterm: 178)
     public static let z4 = Color(0xF9, 0x73, 0x16, xterm: 208)
     public static let z5 = Color(0xEF, 0x44, 0x44, xterm: 203)
+
+    /// Color for a zone, or the neutral below-zones gray for `nil` (FR-4.4, D-07) — the one
+    /// place SPEC-05's heart, BPM number, sparkline, and legend agree on zone→color.
+    public static func forZone(_ z: HRZone?) -> Color {
+        switch z {
+        case .z1: return z1
+        case .z2: return z2
+        case .z3: return z3
+        case .z4: return z4
+        case .z5: return z5
+        case nil: return belowZones
+        }
+    }
 }
