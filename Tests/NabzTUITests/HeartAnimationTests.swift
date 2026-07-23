@@ -34,18 +34,20 @@ func bpmFallbackCadence() {
     #expect(anim.contraction(now: t0.addingTimeInterval(0.51)) > 0)
 }
 
-@Test("Irregular RR produces irregularly spaced beats")
+@Test("Irregular RR produces irregularly spaced beat peaks")
 func irregularRR() {
     let t0 = Date()
     var anim = HeartAnimation()
     anim.ingest(sample(bpm: 75, rr: [0.4, 1.2], at: t0), now: t0)   // beats at +0.4 and +1.6
 
-    anim.advance(now: t0.addingTimeInterval(0.5))
-    #expect(anim.contraction(now: t0.addingTimeInterval(0.5)) > 0)   // first beat fired
-    anim.advance(now: t0.addingTimeInterval(1.0))
-    #expect(anim.contraction(now: t0.addingTimeInterval(1.0)) == 0)  // gap: second not yet
-    anim.advance(now: t0.addingTimeInterval(1.65))
-    #expect(anim.contraction(now: t0.addingTimeInterval(1.65)) > 0)  // second beat fired
+    anim.advance(now: t0.addingTimeInterval(0.52))                  // +0.12 past the first beat
+    #expect(anim.contraction(now: t0.addingTimeInterval(0.52)) > 0.99)   // first beat at its peak
+
+    anim.advance(now: t0.addingTimeInterval(1.5))                  // deep in the 1.2 s gap
+    #expect(anim.contraction(now: t0.addingTimeInterval(1.5)) < 0.2)     // released, no beat yet
+
+    anim.advance(now: t0.addingTimeInterval(1.72))                 // +0.12 past the second beat
+    #expect(anim.contraction(now: t0.addingTimeInterval(1.72)) > 0.99)   // second beat at its peak
 }
 
 // MARK: Contraction envelope — §7b motion
