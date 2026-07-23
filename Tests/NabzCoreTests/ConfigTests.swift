@@ -14,13 +14,15 @@ private func withTempConfig(_ body: (URL) throws -> Void) rethrows {
     try withTempConfig { url in
         let original = Config(preferredDevice: "Polar H10 1234", maxHR: 188, age: 32, zoneThresholds: [55, 65, 75, 85, 95])
         try original.save(to: url)
-        #expect(try Config.load(from: url) == original)
+        let loaded = try Config.load(from: url)
+        #expect(loaded == original)
     }
 }
 
 @Test func missingFileLoadsAsEmpty() throws {
     try withTempConfig { url in
-        #expect(try Config.load(from: url) == Config())   // lazy: no file yet, not an error
+        let loaded = try Config.load(from: url)
+        #expect(loaded == Config())   // lazy: no file yet, not an error
     }
 }
 
