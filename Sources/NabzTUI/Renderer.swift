@@ -8,8 +8,11 @@ public struct FrameInput: Sendable, Equatable {
     public let sample: HeartRateSample?
     public let elapsed: TimeInterval
     public let hrMax: Int
-    public init(state: ConnectionState, sample: HeartRateSample?, elapsed: TimeInterval, hrMax: Int) {
-        self.state = state; self.sample = sample; self.elapsed = elapsed; self.hrMax = hrMax
+    public let zoneThresholds: [Int]   // %HRmax bounds (FR-4.3); core defaults unless overridden
+    public init(state: ConnectionState, sample: HeartRateSample?, elapsed: TimeInterval,
+                hrMax: Int, zoneThresholds: [Int] = HRZone.defaultThresholds) {
+        self.state = state; self.sample = sample; self.elapsed = elapsed
+        self.hrMax = hrMax; self.zoneThresholds = zoneThresholds
     }
 }
 
@@ -80,7 +83,7 @@ public enum Renderer {
     public static func paint(into buf: inout ScreenBuffer, input: FrameInput, heart: HeartFrame = .empty) {
         let layout = Layout.forSize(cols: buf.cols, rows: buf.rows)
         let display = DisplayState.from(input.state, contact: input.sample?.contact)
-        let zone = input.sample.flatMap { HRZone.forBPM($0.bpm, hrMax: input.hrMax) }
+        let zone = input.sample.flatMap { HRZone.forBPM($0.bpm, hrMax: input.hrMax, thresholds: input.zoneThresholds) }
 
         paintHero(into: &buf, rect: layout.hero, input: input, display: display, zone: zone, heart: heart)
         if let spark = layout.sparkline { paintSparkline(into: &buf, rect: spark, input: input, display: display, heart: heart) }
@@ -194,7 +197,7 @@ public enum Renderer {
         for (i, s) in visible.enumerated() {
             let norm = min(1, max(0, (Double(s.bpm) - low) / Double(span)))
             let level = Int((norm * Double(maxLevel)).rounded())
-            let color = Palette.forZone(HRZone.forBPM(s.bpm, hrMax: input.hrMax))
+            let color = Palette.forZone(HRZone.forBPM(s.bpm, hrMax: input.hrMax, thresholds: input.zoneThresholds))
             let col = firstCol + i
             for row in 0..<rect.h {
                 let cellLevel = level - (rect.h - 1 - row) * 8   // bottom row is the fullest

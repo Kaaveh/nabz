@@ -45,7 +45,7 @@ public actor BLEHeartRateSource: HeartRateSource {
         state = BLEStateMachine.transition(state, on: event)
         if state != previous {
             stateCont.yield(state)
-            nabzLog.info("state → \(String(describing: self.state), privacy: .public)")
+            nabzLog("state → \(self.state)")
         }
 
         switch event {
@@ -67,7 +67,7 @@ public actor BLEHeartRateSource: HeartRateSource {
     private func scheduleReconnect() {
         reconnectTask?.cancel()
         let delay = backoff.next(using: &rng)
-        nabzLog.info("reconnect attempt \(self.backoff.attempt) in \(delay, format: .fixed(precision: 1)) s")
+        nabzLog("reconnect attempt \(self.backoff.attempt) in \(String(format: "%.1f", delay)) s")
         let central = central
         reconnectTask = Task {
             try? await Task.sleep(for: .seconds(delay))
@@ -230,7 +230,7 @@ extension CentralController: CBPeripheralDelegate {
             let sample = try HeartRateMeasurementParser.parse(data, at: Date())
             samples?.yield(sample)
         } catch {
-            nabzLog.error("skipping malformed 0x2A37 payload: \(String(describing: error))")  // FR-2.3
+            nabzLog("skipping malformed 0x2A37 payload: \(error)", level: .error)  // FR-2.3
         }
     }
 }
