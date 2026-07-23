@@ -1,0 +1,21 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-test:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      # Pinned toolchain (SPEC-01, PRD §5). Xcode 16.3 → Swift 6.1.
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_16.3.app
+      - run: swift --version
+      - run: swift build
+      - run: swift test
+      # Scripted --simulate smoke run (NFR-6): stream a few samples, then exit.
+      # head closing the pipe SIGPIPEs nabz — expected, so no pipefail here.
+      - name: Simulate smoke run
+        run: swift run nabz | head -n 3
