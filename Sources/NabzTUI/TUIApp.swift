@@ -19,7 +19,11 @@ private actor Model {
 /// Run the full-screen TUI against any `HeartRateSource` until the user quits (`q`, Ctrl-C, or
 /// SIGTERM). A steady ~30 fps `Task.sleep` loop drives diff-based redraws without busy-spinning
 /// (NFR-2/3). `NABZ_SMOKE_FRAMES=N` renders N frames then exits cleanly — the NFR-6 CI smoke run.
-public func runTUI(source: HeartRateSource, hrMax: Int, mode: ColorMode = ColorMode.detect()) async {
+public func runTUI(
+    source: HeartRateSource, hrMax: Int, mode: ColorMode = ColorMode.detect(),
+    zoneThresholds: [Int] = HRZone.defaultThresholds,
+    onConnected: (@Sendable (String) -> Void)? = nil
+) async {
     let terminal = Terminal()
     let smokeFrames = ProcessInfo.processInfo.environment["NABZ_SMOKE_FRAMES"].flatMap(Int.init)
 
@@ -27,7 +31,12 @@ public func runTUI(source: HeartRateSource, hrMax: Int, mode: ColorMode = ColorM
     defer { terminal.leave() }
 
     let model = Model()
-    let stateTask = Task { for await s in source.connectionState { await model.setState(s) } }
+    let stateTask = Task {
+        for await s in source.connectionState {
+            await model.setState(s)
+            if case .connected(let name) = s { onConnected?(name) }   // remember the sensor (FR-1.4)
+        }
+    }
     let sampleTask = Task { for await s in source.samples { await model.setSample(s) } }
     defer { stateTask.cancel(); sampleTask.cancel() }
 
@@ -56,12 +65,13 @@ public func runTUI(source: HeartRateSource, hrMax: Int, mode: ColorMode = ColorM
         if let sample, sample.timestamp != lastSampleTime, display == .live || display == .noContact {
             lastSampleTime = sample.timestamp
             animation.ingest(sample, now: now)
-            nabzLog.debug("sample→render latency \(now.timeIntervalSince(sample.timestamp) * 1000, format: .fixed(precision: 1)) ms")
+            nabzLog("sample→render latency \(String(format: "%.1f", now.timeIntervalSince(sample.timestamp) * 1000)) ms", level: .debug)
         }
         animation.advance(now: now)
 
         var buf = ScreenBuffer(cols: cols, rows: rows)
-        let input = FrameInput(state: state, sample: sample, elapsed: now.timeIntervalSince(start), hrMax: hrMax)
+        let input = FrameInput(state: state, sample: sample, elapsed: now.timeIntervalSince(start),
+                               hrMax: hrMax, zoneThresholds: zoneThresholds)
         Renderer.paint(into: &buf, input: input, heart: animation.frame(now: now))
         terminal.write(buf.diff(from: previous, mode: mode))
         previous = buf

@@ -37,19 +37,18 @@ public enum ConnectionState: Sendable, Equatable {
 public enum HRZone: Int, Sendable {
     case z1 = 1, z2, z3, z4, z5
 
-    /// Derive the zone from BPM and HRmax. Returns `nil` for *below zones* (< 50 %).
-    /// Boundaries per FR-4.2: Z1 50–60, Z2 60–70, Z3 70–80, Z4 80–90, Z5 90–100+.
-    /// Lower bound inclusive; Z5 has no upper cap so max effort stays Z5.
-    public static func forBPM(_ bpm: Int, hrMax: Int) -> HRZone? {
-        guard hrMax > 0 else { return nil }
+    /// Default zone lower bounds in %HRmax (FR-4.2): Z1 50, Z2 60, Z3 70, Z4 80, Z5 90.
+    public static let defaultThresholds = [50, 60, 70, 80, 90]
+
+    /// Derive the zone from BPM and HRmax. Below the first threshold is *below zones* (`nil`,
+    /// FR-4.4); each bound is inclusive; the top zone has no upper cap so max effort stays Z5.
+    /// `thresholds` (FR-4.3) is five ascending %HRmax bounds; a malformed set yields `nil`.
+    public static func forBPM(_ bpm: Int, hrMax: Int, thresholds: [Int] = defaultThresholds) -> HRZone? {
+        guard hrMax > 0, thresholds.count == 5 else { return nil }
         let pct = Double(bpm) / Double(hrMax) * 100
-        switch pct {
-        case ..<50: return nil
-        case ..<60: return .z1
-        case ..<70: return .z2
-        case ..<80: return .z3
-        case ..<90: return .z4
-        default:    return .z5
+        for i in stride(from: 4, through: 0, by: -1) where pct >= Double(thresholds[i]) {
+            return HRZone(rawValue: i + 1)
         }
+        return nil
     }
 }
