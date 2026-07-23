@@ -62,6 +62,7 @@ public enum Renderer {
         into buf: inout ScreenBuffer, rect: Rect,
         input: FrameInput, display: DisplayState
     ) {
+        guard rect.h > 0 else { return }   // no room (1-row terminal) → status line only
         let heartStyle: Style
         switch display {
         case .live:        heartStyle = Style()                               // default fg (zone color is SPEC-05)

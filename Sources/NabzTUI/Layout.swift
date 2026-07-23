@@ -41,7 +41,9 @@ public struct Layout: Sendable, Equatable {
             sparkline = Rect(x: 0, y: top, w: cols, h: h)
         }
 
-        let hero = Rect(x: 0, y: 0, w: cols, h: max(1, top))
+        // Whatever rows remain above the bottom regions. Can be 0 on a 1-row terminal —
+        // the hero simply isn't drawn then, rather than colliding with the status line.
+        let hero = Rect(x: 0, y: 0, w: cols, h: top)
         return Layout(cols: cols, rows: rows, hero: hero, sparkline: sparkline, legend: legend, status: status)
     }
 }
