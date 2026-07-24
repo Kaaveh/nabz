@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Minimal bundle so macOS attributes the Bluetooth (TCC) prompt to "Nabz"
+     instead of the launching terminal. See PRD R-1 / D-01. -->
+<plist version="1.0">
+<dict>
+    <key>CFBundleName</key>
+    <string>Nabz</string>
+    <key>CFBundleDisplayName</key>
+    <string>Nabz</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.kaaveh.nabz</string>
+    <key>CFBundleExecutable</key>
+    <string>nabz</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleShortVersionString</key>
+    <string>0.1.0</string>
+    <key>CFBundleVersion</key>
+    <string>0.1.0</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>13.0</string>
+    <key>NSBluetoothAlwaysUsageDescription</key>
+    <string>Nabz connects to your Bluetooth heart-rate monitor to show your live heartbeat.</string>
+</dict>
+</plist>
