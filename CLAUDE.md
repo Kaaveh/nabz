@@ -21,9 +21,10 @@ Nabz (نبض, "pulse") is a native macOS app that connects to a BLE heart-rate m
 - `--simulate` is the default dev loop — no hardware needed for anything except SPEC-03's acceptance run.
 - TUI owns stdout; diagnostics go through `os.Logger` / `--verbose` (NFR-7).
 
-## Commands (valid once SPEC-01 lands)
+## Commands
 ```bash
 swift build
 swift test
-swift run nabz --simulate
+swift run nabz --simulate       # Phase 1 TUI
+swift run nabz-app --simulate   # Phase 2 app (valid once SPEC-08 lands)
 ```

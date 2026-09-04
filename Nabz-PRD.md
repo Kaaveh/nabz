@@ -1,8 +1,8 @@
 # Nabz — Product Requirements Document
 
-**Status:** Draft v1.2
+**Status:** Draft v1.3
 **Owner:** Kaaveh
-**Last updated:** 2026-07-23
+**Last updated:** 2026-09-04
 **Platform:** macOS (Apple Silicon)
 
 > **Brand note:** *Nabz* (نبض) means "pulse" — the product's one job in a word. The prior working name (*iBeat*) is dropped because the mark was already taken; all package, target, and CLI identifiers are renamed accordingly (see §5, §6).
@@ -192,13 +192,13 @@ nabz --verbose            # mirror diagnostics to stderr (NFR-7)
 
 ## 7a. UI Requirements — Phase 2 (Desktop App, forward-looking)
 
-Captured now so the core and view-model boundary account for them; detailed specs come with the Phase-2 spec set.
+Captured now so the core and view-model boundary account for them; the Phase-2 spec set (SPEC-08…10, §12) carries the detail, and decisions D-12…D-16 record what it settled.
 
 - **FR-2A.1 Liquid Glass surfaces:** primary surfaces (hero heart card, sidebar/toolbar, floating readout) use Liquid Glass via `.glassEffect()`, grouped in a `GlassEffectContainer`; prefer standard SwiftUI controls so the material stays OS-consistent.
 - **FR-2A.2 Appearance adaptivity:** full dark- and light-mode support; all colors resolve from semantic/asset-catalog colors and update live with the system appearance setting.
 - **FR-2A.3 Zone & heart color fidelity:** the five HR-zone colors and the heart gradient remain legible and on-brand in **both** appearances (validate contrast in each mode, not just one).
 - **FR-2A.4 Motion continuity:** the beat-synced pulse (Phase-1 hero, FR-3.1) carries into the app as an animated Liquid Glass element, using `glassEffectID(_:in:)` for smooth state transitions.
-- **FR-2A.5 Graceful degradation:** if run on a pre-macOS-26 system (below the Liquid Glass floor), the app either refuses to launch with a clear message or falls back to a plain material — decided in the Phase-2 spec, not left implicit.
+- **FR-2A.5 Graceful degradation:** if run on a pre-macOS-26 system (below the Liquid Glass floor), the app either refuses to launch with a clear message or falls back to a plain material — decided in the Phase-2 spec, not left implicit. *Resolved: refuse to launch (D-14).*
 
 ---
 
@@ -357,7 +357,13 @@ One-spec-per-session decomposition, matching the `SPEC-NN-name.md` + decision-lo
 - **[SPEC-06 — CLI & config](./specs/SPEC-06-cli-config.md).** swift-argument-parser surface, preferred-device persistence, HRmax/zone config, `--simulate`/`--list`/`--no-color`.
 - **[SPEC-07 — Packaging](./specs/SPEC-07-packaging.md).** `.app` bundle with `NSBluetoothAlwaysUsageDescription`, install script, README with the permission walkthrough.
 
-Phases 2–3 get their own spec sets later, each consuming `NabzCore` unchanged.
+**Phase 2 (written after Phase 1 shipped; same one-spec-per-session rule, simulation-first):**
+
+- **[SPEC-08 — App scaffolding & view model](./specs/SPEC-08-app-scaffolding.md).** `NabzApp` / `nabz-app` targets, macOS 26 gate, `@Observable` session model on the core streams, placeholder window, CI on Xcode 26. Starts by promoting the shared beat-timing logic into `NabzCore` (D-13).
+- **[SPEC-09 — Glass dashboard: the hero heart card](./specs/SPEC-09-glass-dashboard.md).** Liquid Glass hero card, gradient heart on the shared scheduler, eased BPM, dark/light zone palette, sparkline, legend, state visuals.
+- **[SPEC-10 — Sidebar, Settings, devices & packaging](./specs/SPEC-10-app-settings-packaging.md).** Dashboard + Settings navigation, preferences shared with the CLI config, in-app device switching (`stop()`, D-16), the two-executable `Nabz.app`, installer, README. Closes Phase 2.
+
+Phase 3 gets its own spec set later, consuming `NabzCore` unchanged.
 
 ---
 
@@ -389,6 +395,11 @@ These were open at draft; here is where they land. IDs follow the decision-log c
 - **D-09 — TUI lives in its own `NabzTUI` target, not `NabzCore`.** The hand-rolled renderer (D-04) is Phase-1 presentation, so it sits in a `NabzTUI` library depending on `NabzCore` (never the reverse); the `nabz` executable is a thin `@main` over it. This keeps the reuse boundary honest (Phases 2–3 add their own presentation on the same core, PRD §4/§6) and makes the pure layout/diff logic unit-testable without dragging terminal I/O into the core. See §5, §6.
 - **D-10 — Raw mode keeps `ISIG`; teardown is a signal-safe global restore.** The TUI disables `ICANON`/`ECHO` but leaves `ISIG` on, so Ctrl-C/Ctrl-\ still raise signals whose handler restores the terminal (`tcsetattr` + ANSI `write`, both async-signal-safe) and re-raises — one restore path reachable from SIGINT/SIGTERM/crash and `atexit` (FR-1.7, NFR-4). `q` quits gracefully via a flag; `NABZ_SMOKE_FRAMES=N` renders N frames then exits, giving the NFR-6 CI smoke run a no-pty hook. See §7.3, §8.
 - **D-11 — Name-collision check cleared for the CLI; App-Store name and domain deferred (R-7).** As of 2026-07-24 the `nabz` binary name is free on Homebrew (formula and cask), npm, PyPI, and crates.io, with no PATH collision; GitHub has only a handful of unrelated near-zero-star repos. `nabz.app`/`.dev`/`.io` all resolve DNS (taken) and the App Store name is not programmatically checkable — both are Phase-2+ concerns and revisited before any external release. Packaging ships the CLI name as-is. See R-7, SPEC-07.
+- **D-12 — Phase-2 app is SPM-native: `NabzApp` library + `nabz-app` executable, bundle assembled by script.** Mirrors D-09: the library holds views and the view model so they're testable; the executable is a thin `@main`. No Xcode project — `swift build` stays the only build system, extending the D-01/SPEC-07 scripted-bundle approach. Consequences: zone and heart colors are code-defined dynamic colors (`NSColor(name:dynamicProvider:)`) with light/dark variants — the "semantic color" path of FR-2A.2 — rather than an asset catalog; the executable is `nabz-app`, not `Nabz`, because `Nabz` and `nabz` collide on case-insensitive APFS (in `.build/` and inside one bundle); the CI toolchain pin moves from Xcode 16.3 to Xcode 26.x (Swift 6.2) for all targets, while Phase 1 keeps its macOS 13 floor and only the `NabzApp` module is `@available(macOS 26, *)`. See §5, §7a, SPEC-08.
+- **D-13 — Beat timing is core, drawing is presentation.** `HeartAnimation`, `HeartFrame`, `beatContraction`, and `DisplayState` move from `NabzTUI` into `NabzCore` as public API. They are Foundation-only and decide *when* a beat lands and *which* visual state applies; both UIs must agree on that for motion continuity (FR-2A.4), so sharing them is the boundary fix §4 asks for, not a leak. The TUI keeps every drawing decision; its diff is import-only. Done first in SPEC-08, before any app view exists. See §4, §6, §7b (motion).
+- **D-14 — FR-2A.5 resolved: refuse to launch below macOS 26.** `LSMinimumSystemVersion 26.0` in the bundle (LaunchServices shows its standard "requires macOS 26" dialog) plus a runtime `#available` guard in the entry point for bundle-less `swift run` (alert, then exit). No plain-material fallback: one visual surface to validate, and an honest floor (D-06). See §7a, SPEC-08.
+- **D-15 — One `Nabz.app` carries both executables; the app is unsandboxed.** `Contents/MacOS/nabz-app` (GUI, `CFBundleExecutable`) and `Contents/MacOS/nabz` (CLI) share one bundle identity, so the Bluetooth TCC grant is made once (R-1) and the SPEC-07 PATH symlink keeps working. Unsandboxed, so the app reads and writes the same `~/.config/nabz/config.json` as the CLI (D-08) — no App Store distribution is planned (SPEC-07 non-goals). TCC attribution of the second executable is verified on hardware in SPEC-10; if it fails, the fallback is a separate `nabz-cli.app` shim. See R-1, R-6, SPEC-10.
+- **D-16 — `HeartRateSource` gains `stop()`.** A bounded core addition, not a UI leak: the CLI never needed teardown because the process exits, but an app that switches devices or rescans in-process must release the `CBCentralManager` (R-6) and finish its streams. `SimulatedHeartRateSource.stop()` cancels the pump; `BLEHeartRateSource.stop()` cancels reconnect, unsubscribes, disconnects, and finishes both streams, with a `.stopped` event taking the state machine to `.idle`. See §9, SPEC-10.
 
 ---
 
